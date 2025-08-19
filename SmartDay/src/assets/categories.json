@@ -1,0 +1,42 @@
+[
+	{
+		"id": "aa",
+		"name": "C++",
+		"color": "#e6c642"
+	},
+	{
+		"id": "ab",
+		"name": "JavaScript",
+		"color": "#f94e4e"
+	},
+	{
+		"id": "ac",
+		"name": "HTML",
+		"color": "#685af5"
+	},
+	{
+		"id": "ad",
+		"name": "CSS",
+		"color": "#3ce956"
+	},
+	{
+		"id": "ae",
+		"name": "Jogos",
+		"color": "#307de7"
+	},
+	{
+		"id": "af",
+		"name": "Python",
+		"color": "#a656fd"
+	},
+	{
+		"id": "ah",
+		"name": "OpenSource",
+		"color": "#e857ed"
+	},
+	{
+		"id": "ag",
+		"name": "Tecnologia",
+		"color": "#56cfef"
+	}
+]
