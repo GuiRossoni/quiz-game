@@ -4,7 +4,7 @@ import { BsSkipEndFill } from 'react-icons/bs'
 import { IoMdInfinite } from 'react-icons/io'
 import { FaHeart } from 'react-icons/fa'
 import fiftyImg from '@/assets/fifty.svg'
-import categoriesJSON from '@/assets/categories.json'	
+import categoriesJSON from '@/assets/categories.json'
 import { useBoundStore } from '@/store/useBoundStore'
 
 export default function JsxForm ({ handleInputs, nowQueries }) {
