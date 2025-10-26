@@ -45,7 +45,7 @@ export default function Footer ({ alert = false }) {
 							{
 								alert
 									? 'Algumas perguntas podem estar incorretas.'
-									: <span><a href="https://github.com/cosmoart/quiz-game" target="_blank" rel="noopener noreferrer" className={`bg-slate-200 px-1 rounded ${showInfo ? '' : 'hidden'}`}><BsFillStarFill className='inline-block mb-1' color='#e3b341' /> EngSoft</a> - Adaptado com ❤️ por Anne e Gui do 6ºA para o SmartDay</span>
+									: <span><a href="https://github.com/GuiRossoni/quiz-game" target="_blank" rel="noopener noreferrer" className={`bg-slate-200 px-1 rounded ${showInfo ? '' : 'hidden'}`}><BsFillStarFill className='inline-block mb-1' color='#e3b341' /> EngSoft</a> - Adaptado com ❤️ por Anne e Gui do 6ºA para o SmartDay</span>
 							}
 						</p>
 					</li>

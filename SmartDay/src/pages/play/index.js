@@ -26,7 +26,7 @@ export default function Play () {
 		}
 	}, [router.isReady])
 
-	useEffect(() => { window.onbeforeunload = () => 'Are you sure you want to leave?' }, [])
+	useEffect(() => { window.onbeforeunload = () => 'Você tem certeza que deseja sair?' }, [])
 
 	return (
 		<>

@@ -19,14 +19,14 @@ function defaultPromt () {
 		return acc + questionText
 	}, '')
 
-	return 'Generate 3 questions, ' + random3Topics.map(topic => `1 about ${topic}`).join(', ') + '. Each question has 4 answers (1 correct and 3 incorrect).\n---\n' + text + '---\n'
+	return 'Gere três perguntas, ' + random3Topics.map(topic => `1 sobre ${topic}`).join(', ') + '. Cada pergunta tem 4 respostas (1 correta e 3 incorretas).\n---\n' + text + '---\n'
 }
 
 export default function handler (req, res) {
-	if (req.method !== 'POST') return res.status(405).json({ message: 'Only POST requests allowed', statusCode: 405 })
-	if (!req.body.topics) return res.status(400).json({ message: 'Topics are required', statusCode: 400 })
+	if (req.method !== 'POST') return res.status(405).json({ message: 'Somente requisições POST são permitidas', statusCode: 405 })
+	if (!req.body.topics) return res.status(400).json({ message: 'Os tópicos são obrigatórios', statusCode: 400 })
 
-	const promt = defaultPromt() + defaultPromt() + 'Generate 3 questions, ' + req.body.topics.map(topic => `1 about ${topic}`).join(', ') + '. Each question has 4 answers (1 correct and 3 incorrect).\n---'
+	const promt = defaultPromt() + defaultPromt() + 'Gere 3 perguntas, ' + req.body.topics.map(topic => `1 sobre ${topic}`).join(', ') + '. Cada pergunta tem 4 respostas (1 correta e 3 incorretas).\n---'
 
 	setTimeout(() => {
 		res.status(500).json({ message: 'Request timed out', statusCode: 500 })
@@ -44,7 +44,7 @@ export default function handler (req, res) {
 		.then(response => {
 			if (response.statusCode >= 400) {
 				return res.status(500).json({
-					message: response.body.message || 'Something went wrong',
+					message: response.body.message || 'Algo deu errado',
 					statusCode: response.statusCode || 500
 				})
 			}
@@ -65,7 +65,7 @@ export default function handler (req, res) {
 		})
 		.catch(err => {
 			console.log(err)
-			const message = err.body.message || 'Something went wrong'
+			const message = err.body.message || 'Algo deu errado'
 			const statusCode = err.statusCode || 500
 			return res.status(500).json({ message, statusCode })
 		})
