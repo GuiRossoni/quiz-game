@@ -1,6 +1,5 @@
 import offlineQuestions from '@/assets/questions.json'
-const cohere = require('cohere-ai')
-cohere.init(process.env.COHERE_API_KEY)
+const aiAdapter = require('@/helpers/aiAdapter')
 
 function defaultPromt () {
 	const topics = Object.keys(offlineQuestions)
@@ -26,47 +25,65 @@ export default function handler (req, res) {
 	if (req.method !== 'POST') return res.status(405).json({ message: 'Somente requisições POST são permitidas', statusCode: 405 })
 	if (!req.body.topics) return res.status(400).json({ message: 'Os tópicos são obrigatórios', statusCode: 400 })
 
-	const promt = defaultPromt() + defaultPromt() + 'Gere 3 perguntas, ' + req.body.topics.map(topic => `1 sobre ${topic}`).join(', ') + '. Cada pergunta tem 4 respostas (1 correta e 3 incorretas).\n---'
+	const promt = `${defaultPromt()}${defaultPromt()}Gere 3 perguntas, ${req.body.topics.map(topic => `1 sobre ${topic}`).join(', ')}. Cada pergunta tem 4 respostas (1 correta e 3 incorretas).\n---`
 
-	setTimeout(() => {
-		res.status(500).json({ message: 'Request timed out', statusCode: 500 })
+	// Timeout de 10 segundos para fallback offline + guarda de responded para evitar respostas duplas
+	let responded = false
+	const timeout = setTimeout(() => {
+		if (responded) return
+		responded = true
+		try {
+			const availableTopics = Object.keys(offlineQuestions)
+			const requested = Array.isArray(req.body.topics) ? req.body.topics : []
+			const validRequested = requested.filter(t => availableTopics.includes(t))
+			const pickFrom = validRequested.length ? validRequested : availableTopics
+			const random3Topics = pickFrom.sort(() => Math.random() - Math.random()).slice(0, 3)
+			const randomQuestions = random3Topics.map(topic => {
+				const pool = offlineQuestions[topic] || offlineQuestions[availableTopics[Math.floor(Math.random() * availableTopics.length)]]
+				const randomQuestion = {
+					...pool[Math.floor(Math.random() * pool.length)],
+					topic
+				}
+				return randomQuestion
+			})
+			return res.status(200).json(randomQuestions)
+		} catch (err2) {
+			console.log('Offline fallback failed', err2)
+			return res.status(500).json({ message: 'Algo deu errado', statusCode: 500 })
+		}
 	}, 10 * 1000)
 
-	cohere.generate({
-		model: 'command',
-		prompt: promt,
-		max_tokens: 450,
-		temperature: 0.8,
-		k: 0,
-		stop_sequences: ['---'],
-		return_likelihoods: 'NONE'
-	})
-		.then(response => {
-			if (response.statusCode >= 400) {
-				return res.status(500).json({
-					message: response.body.message || 'Algo deu errado',
-					statusCode: response.statusCode || 500
-				})
-			}
-			res.status(200).json(response.body.generations[0].text.split('\n\n').map(question => {
-				if (question.startsWith('\n')) question = question.slice(1)
-				if (question.endsWith('\n')) question = question.slice(0, -1)
-				const questionArray = question.split('\n')
-				const questionObject = {
-					question: questionArray[0].split('question: ')[1]?.trim(),
-					topic: questionArray[1].split('topic: ')[1]?.trim(),
-					answers: questionArray.slice(2, 6).map(answer => answer.split('-')[1]?.trim()),
-					correctAnswer: questionArray[6].split('correct: ')[1]?.trim(),
-					userAnswer: undefined,
-					ia: true
-				}
-				return questionObject
-			}))
+	aiAdapter.generateQuestions({ topics: req.body.topics, prompt: promt })
+		.then(parsedQuestions => {
+			if (responded) return
+			responded = true
+			clearTimeout(timeout)
+			return res.status(200).json(parsedQuestions)
 		})
 		.catch(err => {
-			console.log(err)
-			const message = err.body.message || 'Algo deu errado'
-			const statusCode = err.statusCode || 500
-			return res.status(500).json({ message, statusCode })
+			if (responded) return
+			responded = true
+			clearTimeout(timeout)
+			console.log('AI adapter error:', err.message || err)
+			// Fallback offline: escolha 3 tópicos aleatórios e retorne 3 perguntas
+			try {
+				const availableTopics = Object.keys(offlineQuestions)
+				const requested = Array.isArray(req.body.topics) ? req.body.topics : []
+				const validRequested = requested.filter(t => availableTopics.includes(t))
+				const pickFrom = validRequested.length ? validRequested : availableTopics
+				const random3Topics = pickFrom.sort(() => Math.random() - Math.random()).slice(0, 3)
+				const randomQuestions = random3Topics.map(topic => {
+					const pool = offlineQuestions[topic] || offlineQuestions[availableTopics[Math.floor(Math.random() * availableTopics.length)]]
+					const randomQuestion = {
+						...pool[Math.floor(Math.random() * pool.length)],
+						topic
+					}
+					return randomQuestion
+				})
+				return res.status(200).json(randomQuestions)
+			} catch (err2) {
+				console.log('Offline fallback failed', err2)
+				return res.status(500).json({ message: 'Algo deu errado', statusCode: 500 })
+			}
 		})
 }

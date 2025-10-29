@@ -1,0 +1,183 @@
+{
+  "name": "Questions Webhook → (OpenAI|Cohere) → Parse → Questions[]",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "questions-ai",
+        "options": {
+          "response": "json",
+          "responseData": "={{$json}}"
+        }
+      },
+      "id": "Webhook_Questions",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"provider\"]}}",
+              "operation": "contains",
+              "value2": "openai"
+            }
+          ]
+        }
+      },
+      "id": "IF_OpenAI",
+      "name": "IF provider=openai",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [540, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendQuery": false,
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"model\": \"gpt-3.5-turbo\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Você é um gerador de perguntas de múltipla escolha. Responda somente no formato pedido.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{$json[\"prompt\"]}}\n    }\n  ],\n  \"temperature\": 0.7\n}"
+      },
+      "id": "HTTP_OpenAI",
+      "name": "HTTP → OpenAI Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [780, 120]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cohere.ai/v1/generate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendQuery": false,
+        "jsonParameters": true,
+        "options": {},
+        "headerParametersJson": "={\n  \"Content-Type\": \"application/json\"\n}",
+        "bodyParametersJson": "={\n  \"model\": \"command\",\n  \"prompt\": {{$json[\"prompt\"]}},\n  \"max_tokens\": 450,\n  \"temperature\": 0.8,\n  \"k\": 0,\n  \"stop_sequences\": [\"---\"],\n  \"return_likelihoods\": \"NONE\"\n}"
+      },
+      "id": "HTTP_Cohere",
+      "name": "HTTP → Cohere Generate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [780, 360]
+    },
+    {
+      "parameters": {
+        "functionCode": "const provider = $json.provider || 'openai'\n// Unifica o texto de saída, considerando formatos de resposta distintos\nlet text = ''\nif (provider.includes('openai')) {\n  // OpenAI chat: resposta em $json.choices[0].message.content\n  const c = items[0].json.choices\n  text = (c && c[0] && c[0].message && c[0].message.content) || ''\n} else {\n  // Cohere: resposta em $json.generations[0].text\n  const g = items[0].json.generations\n  text = (g && g[0] && g[0].text) || ''\n}\nreturn [{ json: { text, topics: $json.topics, provider } }]\n"
+      },
+      "id": "Function_ExtractText",
+      "name": "Function → Extract Text",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1020, 240]
+    },
+    {
+      "parameters": {
+        "functionCode": "function parseTextToQuestions(text) {\n  const blocks = text.trim().split(/\\n\\s*\\n/)\n  const out = []\n  for (const block of blocks) {\n    const lines = block.split('\\n').map(l => l.trim())\n    const qLine = lines.find(l => l.toLowerCase().startsWith('question:'))\n    const tLine = lines.find(l => l.toLowerCase().startsWith('topic:'))\n    const cLine = lines.find(l => l.toLowerCase().startsWith('correct:'))\n    const answers = lines.filter(l => l.startsWith('-')).map(l => l.replace(/^-/, '').trim())\n    const question = qLine ? qLine.split(':').slice(1).join(':').trim() : undefined\n    const topic = tLine ? tLine.split(':').slice(1).join(':').trim() : undefined\n    const correctAnswer = cLine ? cLine.split(':').slice(1).join(':').trim() : undefined\n    if (question && topic && correctAnswer && answers.length === 4) {\n      out.push({ question, topic, answers, correctAnswer })\n    }\n  }\n  return out\n}\nconst text = items[0].json.text || ''\nconst arr = parseTextToQuestions(text)\nreturn arr.map(q => ({ json: q }))\n"
+      },
+      "id": "Function_Parse",
+      "name": "Function → Parse Questions[]",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1240, 240]
+    },
+    {
+      "parameters": {
+        "options": {
+          "response": "json",
+          "responseData": "={{$json}}",
+          "responseCode": 200
+        }
+      },
+      "id": "Webhook_Response",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1460, 240]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "IF provider=openai",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF provider=openai": {
+      "main": [
+        [
+          {
+            "node": "HTTP → OpenAI Chat",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP → Cohere Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP → OpenAI Chat": {
+      "main": [
+        [
+          {
+            "node": "Function → Extract Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP → Cohere Generate": {
+      "main": [
+        [
+          {
+            "node": "Function → Extract Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function → Extract Text": {
+      "main": [
+        [
+          {
+            "node": "Function → Parse Questions[]",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function → Parse Questions[]": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "version": 1
+}
